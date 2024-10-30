@@ -36,3 +36,5 @@ override fun onDestroyView() {
         _binding = null
     }
 }
+
+//모든것의시작
