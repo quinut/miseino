@@ -18,8 +18,8 @@
         tools:layout="@layout/fragment_list" />
 
     <fragment
-        android:id="@+id/navigation_notifications"
-        android:name="com.quinut.miseino.ui.notifications.NotificationsFragment"
-        android:label="@string/title_notifications"
-        tools:layout="@layout/fragment_notifications" />
+        android:id="@+id/navigation_connection"
+        android:name="com.quinut.miseino.ui.connection.ConnectionFragment"
+        android:label="@string/title_connection"
+        tools:layout="@layout/fragment_connection" />
 </navigation>
