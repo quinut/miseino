@@ -30,3 +30,5 @@ private lateinit var binding: ActivityMainBinding
         navView.setupWithNavController(navController)
     }
 }
+
+//탭만 완성
