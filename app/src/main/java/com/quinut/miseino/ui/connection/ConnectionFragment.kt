@@ -1,3 +1,4 @@
+// ConnectionFragment.kt
 package com.quinut.miseino.ui.connection
 
 import android.Manifest
@@ -48,6 +49,19 @@ class ConnectionFragment : Fragment(R.layout.fragment_connection), DeviceAdapter
         setupRecyclerView(view)
         setupBluetooth()
         return view
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        sharedViewModel.requestDataUpdate.observe(viewLifecycleOwner,
+            androidx.lifecycle.Observer { request ->
+                if (request == true) {
+                    sendLatestData()
+                    sharedViewModel.requestDataUpdate(false) // Reset the request
+                } else {
+                    // Handle the else case if necessary
+                }
+            })
     }
 
     private fun setupRecyclerView(view: View) {
@@ -163,6 +177,24 @@ class ConnectionFragment : Fragment(R.layout.fragment_connection), DeviceAdapter
                 Log.e("ConnectionFragment", "Error closing socket", closeException)
             }
         }.start()
+    }
+
+    private fun sendLatestData() {
+        bluetoothSocket?.let { socket ->
+            val inputStream: InputStream = socket.inputStream
+            val buffer = ByteArray(1024)
+            try {
+                val bytes = inputStream.read(buffer)
+                if (bytes != -1) {
+                    val readMessage = String(buffer, 0, bytes)
+                    sharedViewModel.updateData(readMessage)
+                } else {
+                    Log.e("ConnectionFragment", "Input stream closed")
+                }
+            } catch (e: IOException) {
+                Log.e("ConnectionFragment", "Error reading from input stream", e)
+            }
+        }
     }
 
     companion object {

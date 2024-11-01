@@ -1,3 +1,4 @@
+// HomeFragment.kt
 package com.quinut.miseino.ui.home
 
 import android.os.Bundle
@@ -29,6 +30,10 @@ class HomeFragment : Fragment() {
         sharedViewModel.data.observe(viewLifecycleOwner, Observer { data ->
             binding.dataTextView.text = data
         })
+
+        binding.button.setOnClickListener {
+            sharedViewModel.requestDataUpdate(true)
+        }
     }
 
     override fun onDestroyView() {
