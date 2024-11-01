@@ -4,37 +4,35 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.TextView
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.ViewModelProvider
+import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.Observer
 import com.quinut.miseino.databinding.FragmentHomeBinding
+import com.quinut.miseino.ui.shared.SharedViewModel
 
 class HomeFragment : Fragment() {
 
-private var _binding: FragmentHomeBinding? = null
-  // This property is only valid between onCreateView and
-  // onDestroyView.
-  private val binding get() = _binding!!
+    private var _binding: FragmentHomeBinding? = null
+    private val binding get() = _binding!!
+    private val sharedViewModel: SharedViewModel by activityViewModels()
 
-  override fun onCreateView(
-    inflater: LayoutInflater,
-    container: ViewGroup?,
-    savedInstanceState: Bundle?
-  ): View {
-    val homeViewModel =
-            ViewModelProvider(this).get(HomeViewModel::class.java)
+    override fun onCreateView(
+        inflater: LayoutInflater, container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        _binding = FragmentHomeBinding.inflate(inflater, container, false)
+        return binding.root
+    }
 
-    _binding = FragmentHomeBinding.inflate(inflater, container, false)
-    val root: View = binding.root
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        sharedViewModel.data.observe(viewLifecycleOwner, Observer { data ->
+            binding.dataTextView.text = data
+        })
+    }
 
-
-    return root
-  }
-
-override fun onDestroyView() {
+    override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
     }
 }
-
-//모든것의시작

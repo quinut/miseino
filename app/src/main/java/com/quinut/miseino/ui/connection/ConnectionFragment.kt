@@ -3,23 +3,32 @@ package com.quinut.miseino.ui.connection
 import android.Manifest
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothSocket
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.quinut.miseino.R
+import com.quinut.miseino.ui.shared.SharedViewModel
+import java.io.IOException
+import java.io.InputStream
+import java.util.*
 
 class ConnectionFragment : Fragment(R.layout.fragment_connection), DeviceAdapter.OnItemClickListener {
 
     private lateinit var deviceAdapter: DeviceAdapter
     private val deviceList = mutableListOf<BluetoothDevice>()
+    private var bluetoothSocket: BluetoothSocket? = null
+    private val sharedViewModel: SharedViewModel by activityViewModels()
 
     private val requestBluetoothPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -90,13 +99,53 @@ class ConnectionFragment : Fragment(R.layout.fragment_connection), DeviceAdapter
     }
 
     override fun onItemClick(device: BluetoothDevice) {
-        // Handle the connection logic here
         connectToDevice(device)
     }
 
     private fun connectToDevice(device: BluetoothDevice) {
-        // Implement the connection logic
-        // For example, you can use BluetoothSocket to connect to the device
+        if (ActivityCompat.checkSelfPermission(
+                requireContext(),
+                Manifest.permission.BLUETOOTH_CONNECT
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            val uuid: UUID = device.uuids[0].uuid // Use the first UUID from the device
+            bluetoothSocket = device.createRfcommSocketToServiceRecord(uuid)
+            bluetoothSocket?.let { socket ->
+                try {
+                    socket.connect()
+                    // Connection successful, start communication
+                    startCommunication(socket)
+                } catch (e: IOException) {
+                    Log.e("ConnectionFragment", "Error connecting to device", e)
+                    try {
+                        socket.close()
+                    } catch (closeException: IOException) {
+                        Log.e("ConnectionFragment", "Error closing socket", closeException)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun startCommunication(socket: BluetoothSocket) {
+        val inputStream: InputStream = socket.inputStream
+        val buffer = ByteArray(1024)
+        var bytes: Int
+
+        Thread {
+            while (true) {
+                try {
+                    bytes = inputStream.read(buffer)
+                    val readMessage = String(buffer, 0, bytes)
+                    activity?.runOnUiThread {
+                        sharedViewModel.updateData(readMessage)
+                    }
+                } catch (e: IOException) {
+                    Log.e("ConnectionFragment", "Error reading from input stream", e)
+                    break
+                }
+            }
+        }.start()
     }
 
     companion object {
