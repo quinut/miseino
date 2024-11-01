@@ -16,7 +16,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.quinut.miseino.R
 
-class ConnectionFragment : Fragment(R.layout.fragment_connection) {
+class ConnectionFragment : Fragment(R.layout.fragment_connection), DeviceAdapter.OnItemClickListener {
 
     private lateinit var deviceAdapter: DeviceAdapter
     private val deviceList = mutableListOf<BluetoothDevice>()
@@ -43,7 +43,7 @@ class ConnectionFragment : Fragment(R.layout.fragment_connection) {
 
     private fun setupRecyclerView(view: View) {
         val recyclerView: RecyclerView = view.findViewById(R.id.deviceRecyclerView)
-        deviceAdapter = DeviceAdapter(deviceList)
+        deviceAdapter = DeviceAdapter(deviceList, this)
         recyclerView.layoutManager = LinearLayoutManager(context)
         recyclerView.adapter = deviceAdapter
     }
@@ -87,6 +87,16 @@ class ConnectionFragment : Fragment(R.layout.fragment_connection) {
                 deviceAdapter.notifyDataSetChanged()
             }
         }
+    }
+
+    override fun onItemClick(device: BluetoothDevice) {
+        // Handle the connection logic here
+        connectToDevice(device)
+    }
+
+    private fun connectToDevice(device: BluetoothDevice) {
+        // Implement the connection logic
+        // For example, you can use BluetoothSocket to connect to the device
     }
 
     companion object {

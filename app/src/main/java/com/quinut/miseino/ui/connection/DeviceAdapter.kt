@@ -11,7 +11,14 @@ import androidx.core.app.ActivityCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.quinut.miseino.R
 
-class DeviceAdapter(private val deviceList: List<BluetoothDevice>) : RecyclerView.Adapter<DeviceAdapter.DeviceViewHolder>() {
+class DeviceAdapter(
+    private val deviceList: List<BluetoothDevice>,
+    private val itemClickListener: OnItemClickListener
+) : RecyclerView.Adapter<DeviceAdapter.DeviceViewHolder>() {
+
+    interface OnItemClickListener {
+        fun onItemClick(device: BluetoothDevice)
+    }
 
     class DeviceViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val deviceName: TextView = itemView.findViewById(R.id.device_name)
@@ -30,6 +37,9 @@ class DeviceAdapter(private val deviceList: List<BluetoothDevice>) : RecyclerVie
             ) == PackageManager.PERMISSION_GRANTED
         ) {
             holder.deviceName.text = device.name ?: "Unknown Device"
+        }
+        holder.itemView.setOnClickListener {
+            itemClickListener.onItemClick(device)
         }
     }
 
