@@ -111,16 +111,24 @@ class ConnectionFragment : Fragment(R.layout.fragment_connection), DeviceAdapter
             val uuid: UUID = device.uuids[0].uuid // Use the first UUID from the device
             bluetoothSocket = device.createRfcommSocketToServiceRecord(uuid)
             bluetoothSocket?.let { socket ->
-                try {
-                    socket.connect()
-                    // Connection successful, start communication
-                    startCommunication(socket)
-                } catch (e: IOException) {
-                    Log.e("ConnectionFragment", "Error connecting to device", e)
+                var attempts = 0
+                val maxAttempts = 3
+                while (attempts < maxAttempts) {
                     try {
-                        socket.close()
-                    } catch (closeException: IOException) {
-                        Log.e("ConnectionFragment", "Error closing socket", closeException)
+                        socket.connect()
+                        // Connection successful, start communication
+                        startCommunication(socket)
+                        return
+                    } catch (e: IOException) {
+                        Log.e("ConnectionFragment", "Error connecting to device, attempt ${attempts + 1}", e)
+                        attempts++
+                        if (attempts >= maxAttempts) {
+                            try {
+                                socket.close()
+                            } catch (closeException: IOException) {
+                                Log.e("ConnectionFragment", "Error closing socket after failed attempts", closeException)
+                            }
+                        }
                     }
                 }
             }
@@ -136,6 +144,10 @@ class ConnectionFragment : Fragment(R.layout.fragment_connection), DeviceAdapter
             while (true) {
                 try {
                     bytes = inputStream.read(buffer)
+                    if (bytes == -1) {
+                        Log.e("ConnectionFragment", "Input stream closed")
+                        break
+                    }
                     val readMessage = String(buffer, 0, bytes)
                     activity?.runOnUiThread {
                         sharedViewModel.updateData(readMessage)
@@ -144,6 +156,11 @@ class ConnectionFragment : Fragment(R.layout.fragment_connection), DeviceAdapter
                     Log.e("ConnectionFragment", "Error reading from input stream", e)
                     break
                 }
+            }
+            try {
+                socket.close()
+            } catch (closeException: IOException) {
+                Log.e("ConnectionFragment", "Error closing socket", closeException)
             }
         }.start()
     }
