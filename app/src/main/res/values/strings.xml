@@ -2,6 +2,6 @@
     <string name="app_name">Miseino</string>
     <string name="title_home">Home</string>
     <string name="title_list">List</string>
-    <string name="title_connection">Connection</string>
+    <string name="title_notifications">Notifications</string>
     <string name="scanButton">Scan</string>
 </resources>
