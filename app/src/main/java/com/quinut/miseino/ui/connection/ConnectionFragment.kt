@@ -1,4 +1,3 @@
-// ConnectionFragment.kt
 package com.quinut.miseino.ui.connection
 
 import android.Manifest
@@ -55,10 +54,7 @@ class ConnectionFragment : Fragment(R.layout.fragment_connection), DeviceAdapter
             if (BluetoothDevice.ACTION_FOUND == action) {
                 val device: BluetoothDevice? = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
                 device?.let {
-                    if (ActivityCompat.checkSelfPermission(
-                            requireContext(),
-                            Manifest.permission.BLUETOOTH_CONNECT
-                        ) == PackageManager.PERMISSION_GRANTED && it.name == "HC-06" && !deviceList.contains(it)) {
+                    if (it.name == "HC-06" && !deviceList.contains(it)) {
                         deviceList.add(it)
                         deviceAdapter.notifyDataSetChanged()
                     }
