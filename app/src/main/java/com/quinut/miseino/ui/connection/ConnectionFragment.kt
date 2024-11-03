@@ -12,6 +12,7 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
 import androidx.fragment.app.Fragment
@@ -125,24 +126,20 @@ class ConnectionFragment : Fragment(R.layout.fragment_connection), DeviceAdapter
             val uuid: UUID = device.uuids[0].uuid // Use the first UUID from the device
             bluetoothSocket = device.createRfcommSocketToServiceRecord(uuid)
             bluetoothSocket?.let { socket ->
-                var attempts = 0
-                val maxAttempts = 3
-                while (attempts < maxAttempts) {
+                try {
+                    socket.connect()
+                    // Connection successful, start communication
+                    startCommunication(socket)
+                } catch (e: IOException) {
+                    Log.e("ConnectionFragment", "Error connecting to device, attempt 1", e)
                     try {
-                        socket.connect()
-                        // Connection successful, start communication
-                        startCommunication(socket)
-                        return
-                    } catch (e: IOException) {
-                        Log.e("ConnectionFragment", "Error connecting to device, attempt ${attempts + 1}", e)
-                        attempts++
-                        if (attempts >= maxAttempts) {
-                            try {
-                                socket.close()
-                            } catch (closeException: IOException) {
-                                Log.e("ConnectionFragment", "Error closing socket after failed attempts", closeException)
-                            }
-                        }
+                        socket.close()
+                    } catch (closeException: IOException) {
+                        Log.e("ConnectionFragment", "Error closing socket after failed attempt", closeException)
+                    }
+                    // Show toast message on the main thread
+                    activity?.runOnUiThread {
+                        Toast.makeText(requireContext(), "Unable to connect to device", Toast.LENGTH_SHORT).show()
                     }
                 }
             }
