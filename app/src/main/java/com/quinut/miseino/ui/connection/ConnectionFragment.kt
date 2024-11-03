@@ -5,8 +5,12 @@ import android.Manifest
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothSocket
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
@@ -14,6 +18,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.core.app.ActivityCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
@@ -31,17 +36,38 @@ class ConnectionFragment : Fragment(R.layout.fragment_connection), DeviceAdapter
     private val deviceList = mutableListOf<BluetoothDevice>()
     private var bluetoothSocket: BluetoothSocket? = null
     private val sharedViewModel: SharedViewModel by activityViewModels()
+    private val bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
 
-    private val requestBluetoothPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted: Boolean ->
-        if (isGranted) {
+    private val requestBluetoothPermissionsLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        if (permissions[Manifest.permission.BLUETOOTH_CONNECT] == true &&
+            permissions[Manifest.permission.BLUETOOTH_SCAN] == true) {
             enableBluetooth()
         } else {
-            // Handle the case where the user denies the permission
+            // Handle the case where the user denies the permissions
         }
     }
 
+    private val deviceDiscoveryReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val action: String? = intent.action
+            if (BluetoothDevice.ACTION_FOUND == action) {
+                val device: BluetoothDevice? = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+                device?.let {
+                    if (ActivityCompat.checkSelfPermission(
+                            requireContext(),
+                            Manifest.permission.BLUETOOTH_CONNECT
+                        ) == PackageManager.PERMISSION_GRANTED && it.name == "HC-06" && !deviceList.contains(it)) {
+                        deviceList.add(it)
+                        deviceAdapter.notifyDataSetChanged()
+                    }
+                }
+            }
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
@@ -54,15 +80,17 @@ class ConnectionFragment : Fragment(R.layout.fragment_connection), DeviceAdapter
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        sharedViewModel.requestDataUpdate.observe(viewLifecycleOwner,
-            androidx.lifecycle.Observer { request ->
-                if (request == true) {
-                    sendLatestData()
-                    sharedViewModel.requestDataUpdate(false) // Reset the request
-                } else {
-                    // Handle the else case if necessary
-                }
-            })
+        sharedViewModel.requestDataUpdate.observe(viewLifecycleOwner) { request ->
+            if (request == true) {
+                sendLatestData()
+                sharedViewModel.requestDataUpdate(false) // Reset the request
+            }
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        requireContext().unregisterReceiver(deviceDiscoveryReceiver)
     }
 
     private fun setupRecyclerView(view: View) {
@@ -72,20 +100,28 @@ class ConnectionFragment : Fragment(R.layout.fragment_connection), DeviceAdapter
         recyclerView.adapter = deviceAdapter
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun setupBluetooth() {
         if (ActivityCompat.checkSelfPermission(
                 requireContext(),
                 Manifest.permission.BLUETOOTH_CONNECT
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            requestBluetoothPermissionLauncher.launch(Manifest.permission.BLUETOOTH_CONNECT)
+            ) != PackageManager.PERMISSION_GRANTED ||
+            ActivityCompat.checkSelfPermission(
+                requireContext(),
+                Manifest.permission.BLUETOOTH_SCAN
+            ) != PackageManager.PERMISSION_GRANTED) {
+            requestBluetoothPermissionsLauncher.launch(
+                arrayOf(
+                    Manifest.permission.BLUETOOTH_CONNECT,
+                    Manifest.permission.BLUETOOTH_SCAN
+                )
+            )
         } else {
             enableBluetooth()
         }
     }
 
     private fun enableBluetooth() {
-        val bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
         if (bluetoothAdapter == null) {
             // Device doesn't support Bluetooth
             return
@@ -94,22 +130,32 @@ class ConnectionFragment : Fragment(R.layout.fragment_connection), DeviceAdapter
             val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
             startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT)
         } else {
-            populateDeviceList(bluetoothAdapter)
+            populateDeviceList()
         }
     }
 
-    private fun populateDeviceList(bluetoothAdapter: BluetoothAdapter) {
+    private fun populateDeviceList() {
         if (ActivityCompat.checkSelfPermission(
                 requireContext(),
                 Manifest.permission.BLUETOOTH_CONNECT
-            ) == PackageManager.PERMISSION_GRANTED
-        ) {
-            val pairedDevices: Set<BluetoothDevice>? = bluetoothAdapter.bondedDevices
-            if (pairedDevices != null) {
-                deviceList.clear()
-                deviceList.addAll(pairedDevices)
-                deviceAdapter.notifyDataSetChanged()
+            ) == PackageManager.PERMISSION_GRANTED &&
+            ActivityCompat.checkSelfPermission(
+                requireContext(),
+                Manifest.permission.BLUETOOTH_SCAN
+            ) == PackageManager.PERMISSION_GRANTED) {
+            val pairedDevices: Set<BluetoothDevice>? = bluetoothAdapter?.bondedDevices
+            deviceList.clear()
+            pairedDevices?.let {
+                deviceList.addAll(it.filter { device -> device.name == "HC-06" })
             }
+            deviceAdapter.notifyDataSetChanged()
+
+            // Register for broadcasts when a device is discovered
+            val filter = IntentFilter(BluetoothDevice.ACTION_FOUND)
+            requireContext().registerReceiver(deviceDiscoveryReceiver, filter)
+
+            // Start discovery
+            bluetoothAdapter?.startDiscovery()
         }
     }
 
@@ -121,8 +167,7 @@ class ConnectionFragment : Fragment(R.layout.fragment_connection), DeviceAdapter
         if (ActivityCompat.checkSelfPermission(
                 requireContext(),
                 Manifest.permission.BLUETOOTH_CONNECT
-            ) == PackageManager.PERMISSION_GRANTED
-        ) {
+            ) == PackageManager.PERMISSION_GRANTED) {
             val uuid: UUID = device.uuids[0].uuid // Use the first UUID from the device
             bluetoothSocket = device.createRfcommSocketToServiceRecord(uuid)
             bluetoothSocket?.let { socket ->
