@@ -54,9 +54,14 @@ class ConnectionFragment : Fragment(R.layout.fragment_connection), DeviceAdapter
             if (BluetoothDevice.ACTION_FOUND == action) {
                 val device: BluetoothDevice? = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
                 device?.let {
-                    if (it.name == "HC-06" && !deviceList.contains(it)) {
-                        deviceList.add(it)
-                        deviceAdapter.notifyDataSetChanged()
+                    if (ActivityCompat.checkSelfPermission(
+                            context,
+                            Manifest.permission.BLUETOOTH_CONNECT
+                        ) == PackageManager.PERMISSION_GRANTED) {
+                        if (it.name == "HC-06" && !deviceList.contains(it)) {
+                            deviceList.add(it)
+                            deviceAdapter.notifyDataSetChanged()
+                        }
                     }
                 }
             }
@@ -201,6 +206,7 @@ class ConnectionFragment : Fragment(R.layout.fragment_connection), DeviceAdapter
                         break
                     }
                     val readMessage = String(buffer, 0, bytes)
+                    Log.d("ConnectionFragment", "Received data startCommunication: $readMessage")
                     activity?.runOnUiThread {
                         sharedViewModel.updateData(readMessage)
                     }
@@ -225,6 +231,7 @@ class ConnectionFragment : Fragment(R.layout.fragment_connection), DeviceAdapter
                 val bytes = inputStream.read(buffer)
                 if (bytes != -1) {
                     val readMessage = String(buffer, 0, bytes)
+                    Log.d("ConnectionFragment", "Received data sendLatesetData: $readMessage")
                     sharedViewModel.updateData(readMessage)
                 } else {
                     Log.e("ConnectionFragment", "Input stream closed")
